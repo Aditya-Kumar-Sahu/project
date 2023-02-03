@@ -80,19 +80,13 @@ class Oauth:
             username: str = payload.get("sub")
             if username is None:
                 raise credentials_exception
-            token_data = TokenData(username)
+            token_data = TokenData(username=username)
         except JWTError:
             raise credentials_exception
         user = db.find(username=token_data.username)
         if user is None:
             raise credentials_exception
         return user
-
-
-    async def get_current_active_user(current_user: User = Depends(get_current_user)):
-        if current_user.disabled:
-            raise HTTPException(status_code=400, detail="Inactive user")
-        return current_user
 
 
 app = FastAPI()
@@ -116,14 +110,16 @@ def get_password_hash(password):
 
 def get_user(username: str):
     data =db.find(username)
+    print(data)
     if not data:
         return None
     else:
-        user_dict=data[username]
+        user_dict=data
         return User(**user_dict)
 
 def authenticate_user(username: str, password: str):
     user = get_user(username)
+    print(user)
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -163,13 +159,9 @@ async def new_user(user: User):
 
 
 @app.get("/users/me/", response_model=User)
-async def read_user_me(current_user: User = Depends(Oauth.get_current_active_user)):
+async def read_user_me(current_user: User = Depends(Oauth.get_current_user)):
     return current_user
 
 
-@app.get("/users/me/items/")
-async def read_own_items(current_user: User = Depends(Oauth.get_current_active_user)):
-    return {"owner": current_user.username, "data": db.find(current_user.username[current_user.username])}
-
-
 uvicorn.run(app=app)
+# print(authenticate_user("string", "string"))
