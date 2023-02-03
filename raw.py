@@ -51,7 +51,7 @@ class Mongo:
     def __init__(self):
         self.client = MongoClient("mongodb+srv://test.mp8koe0.mongodb.net/myFirstDatabase", username="adityasahu4321", password="789456")
         self.db = self.client.test
-        self.collection = self.db.users
+        self.collection = self.db.test
 
     def insert(self, data):
         self.collection.insert_one(data).inserted_id
