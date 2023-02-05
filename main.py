@@ -109,17 +109,15 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def get_user(username: str):
-    data =db.find(username)
-    print(data)
-    if not data:
+    user_dict= db.find(username)
+    print(user_dict)
+    if not user_dict:
         return None
     else:
-        user_dict=data
         return User(**user_dict)
 
 def authenticate_user(username: str, password: str):
     user = get_user(username)
-    print(user)
     if not user:
         return False
     if not verify_password(password, user.password):
@@ -146,13 +144,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @app.post("/user")
 async def new_user(user: User):
     current_user={
-        user.username: {
-            "username"  : user.username,
-            "email"     : user.email,
-            "full_name" : user.full_name,
-            "disabled"  : user.disabled,
-            "password"  : get_password_hash(user.password),
-        }
+        "username"  : user.username,
+        "email"     : user.email,
+        "full_name" : user.full_name,
+        "disabled"  : user.disabled,
+        "password"  : get_password_hash(user.password),
     }
     db.insert(current_user)
     return {"status": "ok"}
