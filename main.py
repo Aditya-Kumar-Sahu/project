@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from typing import Union
 import uvicorn
 from pymongo import MongoClient
-
-from fastapi import Depends, FastAPI, HTTPException, status
+from io import BytesIO
+from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -18,7 +18,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 class Token(BaseModel):
     access_token: str
-    token_type: str
+    token_type  : str
 
 
 class TokenData(BaseModel):
@@ -26,11 +26,12 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
-    username: str
-    email: Union[str, None] = None
-    full_name: Union[str, None] = None
-    disabled: Union[bool, None] = None
-    password: str
+    username    : str
+    email       : Union[str, None] = None
+    full_name   : Union[str, None] = None
+    disabled    : Union[bool, None] = None
+    password    : str
+    image       : Union[str, None] = None
 
 
 class Mongo:
@@ -39,18 +40,18 @@ class Mongo:
         self.db = self.client.test
         self.collection = self.db.users
 
-    def insert(self, data):
+    def insert(self, data: dict):
         self.collection.insert_one(data).inserted_id
 
-    def find(self, username):
+    def find(self, username: str):
         user = self.collection.find_one({"username": username})
         return user
 
-    def delete(self, username):
+    def delete(self, username: str):
         self.collection.find_one_and_delete({"username": username})
 
-    def update(self, data):
-        self.collection.find_one_and_update(data)
+    def update(self, username: str, data: dict):
+        self.collection.update_one({"username": username}, {"$set" : data})
 
 db = Mongo()
 
@@ -152,6 +153,19 @@ async def new_user(user: User):
     }
     db.insert(current_user)
     return {"status": "ok"}
+
+
+@app.post("/user/image/")
+async def upload_image(image: Union[UploadFile, None], current_user: User = Depends(Oauth.get_current_user)):
+    if not image:
+        return{"message": "No file sent"}
+    if "image" not in image.content_type:
+        return{"message": "Please upload image file"}
+    image_data = await image.read()     # read file data from UploadFile object
+    buffer = BytesIO()                  # byte buffer object
+    buffer.write(image_data)            # write image data to byte buffer
+    db.update(current_user["username"], {"image": str(buffer.getvalue())})
+    return{"status": "Ok"}
 
 
 @app.get("/users/me/", response_model=User)
