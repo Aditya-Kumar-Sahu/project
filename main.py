@@ -31,7 +31,7 @@ class User(BaseModel):
     full_name   : Union[str, None] = None
     disabled    : Union[bool, None] = None
     password    : str
-    image       : Union[str, None] = None
+    image       : Union[bytes, str, None] = None
 
 
 class Mongo:
@@ -150,13 +150,14 @@ async def new_user(user: User):
         "full_name" : user.full_name,
         "disabled"  : user.disabled,
         "password"  : get_password_hash(user.password),
+        "image"     : None
     }
     db.insert(current_user)
     return {"status": "ok"}
 
 
 @app.post("/user/image/")
-async def upload_image(image: Union[UploadFile, None], current_user: User = Depends(Oauth.get_current_user)):
+async def upload_image(image: Union[UploadFile, None] = None, current_user: User = Depends(Oauth.get_current_user)):
     if not image:
         return{"message": "No file sent"}
     if "image" not in image.content_type:
@@ -164,12 +165,14 @@ async def upload_image(image: Union[UploadFile, None], current_user: User = Depe
     image_data = await image.read()     # read file data from UploadFile object
     buffer = BytesIO()                  # byte buffer object
     buffer.write(image_data)            # write image data to byte buffer
-    db.update(current_user["username"], {"image": str(buffer.getvalue())})
+    db.update(current_user["username"], {"image": buffer.getvalue()})
     return{"status": "Ok"}
 
 
 @app.get("/users/me/", response_model=User)
 async def read_user_me(current_user: User = Depends(Oauth.get_current_user)):
+    if not current_user["image"]:
+        current_user["image"] = str(current_user["image"])
     return current_user
 
 
